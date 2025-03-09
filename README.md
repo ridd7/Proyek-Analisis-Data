@@ -23,11 +23,14 @@ conda activate ecommerce-dashboard
 pip install -r requirements.txt
 ```
 ### **2. Setup Environment - Shell/Terminal**
+```sh
 mkdir proyek_analisis_data
 cd proyek_analisis_data
 pipenv install
 pipenv shell
 pip install -r requirements.txt
-
+```
 ### **3. Run steamlit app**
+```sh
 streamlit run dashboard.py
+```
