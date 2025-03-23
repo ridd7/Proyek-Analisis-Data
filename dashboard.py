@@ -7,12 +7,21 @@ import os
 # Load datasets
 @st.cache_data
 def load_data():
-    data_path = os.path.join(os.path.dirname(__file__), "../data")
-    sellers = pd.read_csv(os.path.join(data_path, "sellers_dataset.csv"))
-    orders = pd.read_csv(os.path.join(data_path, "orders_dataset.csv"))
-    order_items = pd.read_csv(os.path.join(data_path, "order_items_dataset.csv"))
-    order_reviews = pd.read_csv(os.path.join(data_path, "order_reviews_dataset.csv"))
-    order_payments = pd.read_csv(os.path.join(data_path, "order_payments_dataset.csv"))
+    data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../data"))
+    if not os.path.exists(data_path):
+        st.error(f"Folder dataset tidak ditemukan: {data_path}")
+        st.stop()
+    
+    try:
+        sellers = pd.read_csv(os.path.join(data_path, "sellers_dataset.csv"))
+        orders = pd.read_csv(os.path.join(data_path, "orders_dataset.csv"))
+        order_items = pd.read_csv(os.path.join(data_path, "order_items_dataset.csv"))
+        order_reviews = pd.read_csv(os.path.join(data_path, "order_reviews_dataset.csv"))
+        order_payments = pd.read_csv(os.path.join(data_path, "order_payments_dataset.csv"))
+    except FileNotFoundError as e:
+        st.error(f"File dataset tidak ditemukan: {e}")
+        st.stop()
+    
     return sellers, orders, order_items, order_reviews, order_payments
 
 sellers, orders, order_items, order_reviews, order_payments = load_data()
