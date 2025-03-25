@@ -7,8 +7,7 @@ import os
 # Load datasets
 @st.cache_data
 def load_data():
-    data_path = os.path.dirname(__file__)  # Sesuaikan dengan root directory
-    try:
+    data_path = os.path.dirname(__file__)
     sellers = pd.read_csv(os.path.join(data_path, "sellers_dataset.csv"))
     orders = pd.read_csv(os.path.join(data_path, "orders_dataset.csv"))
     order_items = pd.read_csv(os.path.join(data_path, "order_items_dataset.csv"))
