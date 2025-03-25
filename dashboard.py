@@ -9,20 +9,17 @@ import os
 def load_data():
     data_path = os.path.dirname(__file__)  # Sesuaikan dengan root directory
     try:
-        sellers = pd.read_csv(os.path.join(data_path, "sellers_dataset.csv"))
-        orders = pd.read_csv(os.path.join(data_path, "orders_dataset.csv"))
-        order_items = pd.read_csv(os.path.join(data_path, "order_items_dataset.csv"))
-        order_reviews = pd.read_csv(os.path.join(data_path, "order_reviews_dataset.csv"))
-        order_payments = pd.read_csv(os.path.join(data_path, "order_payments_dataset.csv"))
-    except FileNotFoundError as e:
-        st.error(f"File dataset tidak ditemukan: {e}")
-        st.stop()
-    
-    return sellers, orders, order_items, order_reviews, order_payments
+    sellers = pd.read_csv(os.path.join(data_path, "sellers_dataset.csv"))
+    orders = pd.read_csv(os.path.join(data_path, "orders_dataset.csv"))
+    order_items = pd.read_csv(os.path.join(data_path, "order_items_dataset.csv"))
+    order_reviews = pd.read_csv(os.path.join(data_path, "order_reviews_dataset.csv"))
+    products = pd.read_csv(os.path.join(data_path, "products_dataset.csv"))
+    order_payments = pd.read_csv(os.path.join(data_path, "order_payments_dataset.csv"))
+    return sellers, orders, order_items, order_reviews, products, order_payments
 
-sellers, orders, order_items, order_reviews, order_payments = load_data()
+sellers, orders, order_items, order_reviews, products, order_payments = load_data()
 
-# Convert order_purchase_timestamp ke datetime
+# Convert timestamps
 orders['order_purchase_timestamp'] = pd.to_datetime(orders['order_purchase_timestamp'])
 
 # Sidebar untuk filter tanggal
@@ -37,32 +34,47 @@ start_date, end_date = st.sidebar.date_input(
 filtered_orders = orders[(orders['order_purchase_timestamp'].dt.date >= start_date) &
                          (orders['order_purchase_timestamp'].dt.date <= end_date)]
 
-# Merge order items dengan sellers untuk mendapatkan jumlah pesanan per seller
-order_items_sellers = order_items.merge(sellers, on='seller_id')
-seller_orders = order_items_sellers.groupby('seller_id').order_id.nunique().reset_index()
-seller_orders.columns = ['seller_id', 'total_orders']
+# Merge data untuk analisis produk
+order_items_products = order_items.merge(products, on='product_id')
+order_items_products['order_month'] = pd.to_datetime(order_items_products['shipping_limit_date']).dt.to_period('M')
 
-# Scatter plot antara nilai pembayaran dan rating
-payments_reviews = order_payments.merge(order_reviews, on='order_id')
+# Agregasi kategori produk terlaris per bulan
+category_sales = order_items_products.groupby(['order_month', 'product_category_name'])['order_id'].count().reset_index()
+category_sales = category_sales.sort_values(by=['order_month', 'order_id'], ascending=[True, False])
+
+# Faktor kepuasan pelanggan
+review_analysis = order_reviews.merge(order_payments, on='order_id')
 
 # --- TAMPILAN DASHBOARD ---
 st.title("E-Commerce Dashboard")
 
-# Chart 1: Bar Chart - Jumlah Pesanan per Penjual
-st.subheader("Total Pesanan per Penjual")
-fig, ax = plt.subplots()
-top_sellers = seller_orders.sort_values(by='total_orders', ascending=False).head(10)
-sns.barplot(y=top_sellers['seller_id'], x=top_sellers['total_orders'], ax=ax)
-ax.set_xlabel("Jumlah Pesanan")
-ax.set_ylabel("ID Penjual")
+# Chart 1: Produk Kategori Terlaris per Bulan
+st.subheader("Produk Kategori Terlaris per Bulan")
+st.sidebar.subheader("Filter Kategori Produk")
+selected_category = st.sidebar.selectbox("Pilih Kategori Produk", category_sales['product_category_name'].unique())
+filtered_category_sales = category_sales[category_sales['product_category_name'] == selected_category]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+category_sales['order_month'] = category_sales['order_month'].astype(str)
+filtered_category_sales['order_month'] = filtered_category_sales['order_month'].astype(str)
+category_sales['order_id'] = pd.to_numeric(category_sales['order_id'], errors='coerce')
+category_sales = category_sales.dropna()
+sns.lineplot(data=filtered_category_sales, x='order_month', y='order_id', marker='o', ax=ax)
+ax.set_xlabel("Bulan")
+ax.set_ylabel("Jumlah Penjualan")
 st.pyplot(fig)
 
-# Chart 2: Scatter Plot - Hubungan Nilai Pembayaran vs Rating
-st.subheader("Hubungan Nilai Pembayaran dan Rating Pelanggan")
+# Chart 2: Analisis Kepuasan Pelanggan
+st.subheader("Faktor yang Mempengaruhi Kepuasan Pelanggan")
+st.sidebar.subheader("Filter Rentang Rating")
+review_range = st.sidebar.slider("Pilih Rentang Rating", 1, 5, (1, 5))
+filtered_reviews = review_analysis[(review_analysis['review_score'] >= review_range[0]) &
+                                     (review_analysis['review_score'] <= review_range[1])]
+
 fig, ax = plt.subplots()
-sns.scatterplot(x=payments_reviews['payment_value'], y=payments_reviews['review_score'], alpha=0.5, ax=ax)
-ax.set_xlabel("Nilai Pembayaran")
-ax.set_ylabel("Rating Pelanggan")
+sns.boxplot(data=filtered_reviews, x='review_score', y='payment_value', ax=ax)
+ax.set_xlabel("Rating Pelanggan")
+ax.set_ylabel("Nilai Pembayaran")
 st.pyplot(fig)
 
 # Menampilkan dataset setelah filter
